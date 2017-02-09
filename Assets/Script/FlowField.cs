@@ -70,9 +70,15 @@ public class FlowField {
 			}
 		}
 
+		Debug.Log ("Max F: " + max_F);
 		for (int i = 0; i < cm.path_datas.Count; ++i)
 		{
-			cm.path_datas [i].mesh.material.color = new Color (1, 1, 1f - cm.path_datas [i].F / max_F);
+			if (i == cm.end_cube)
+				cm.path_datas [i].mesh.material.color = Color.blue;
+			else if (cm.path_datas[i].cost != 65535f)
+				cm.path_datas [i].mesh.material.color = new Color (1, 1, 1f - cm.path_datas [i].F / max_F);
+
+			cm.path_datas [i].cube.name = cm.path_datas [i].cube.name + " F: " + cm.path_datas[i].F;
 		}
 	}
 
@@ -80,26 +86,27 @@ public class FlowField {
 	{
 		for (int i = 0; i < (int)type; ++i)
 		{
-			if (end_cube.x + direction [i].x_move < cm.x && end_cube.x + direction [i].x_move > 0
-				&& end_cube.z + direction [i].z_move < cm.z && end_cube.z + direction [i].z_move > 0) {
+			if (end_cube.x + direction [i].x_move < cm.x && end_cube.x + direction [i].x_move >= 0
+				&& end_cube.z + direction [i].z_move < cm.z && end_cube.z + direction [i].z_move >= 0) {
 
 				int index = end_cube.index + direction [i].x_move + direction [i].z_move * cm.x;
 				
-				if (index > 0 && index < cm.path_datas.Count) {
+				if (index >=0 && index < cm.path_datas.Count) {
+					
 					var n_cube = cm.path_datas [index];
-
-					float F = end_cube.cost * 0.5f + n_cube.cost * 0.5f + end_cube.F;
+					
+					float F = n_cube.cost + end_cube.F;
 
 					if (n_cube.F > F) {
 						n_cube.F = F;
 						if (F > max_F)
 							max_F = F;
+						if (!open_cube.Contains (n_cube)) {
+							open_cube.Add (n_cube);
+						}
 					}
-
-					if (!open_cube.Contains (n_cube) && !close_cube.Contains (n_cube)) {
-						open_cube.Add (n_cube);
-					}
-				}
+				} else
+					Debug.LogError (string.Format ("Index Out: {0}-{1}", (end_cube.x + direction [i].x_move), (end_cube.z + direction [i].z_move)));
 			}
 		}
 

@@ -14,7 +14,7 @@ public class CubePathData
 
 	//rang: (0,1]
 	public float cost = 1;
-	public float F = float.MaxValue;
+	public float F = 65535f;
 
 	public CubePathData(int index,int x, int z, GameObject cube, MeshRenderer mesh)
 	{
@@ -151,7 +151,10 @@ public class CubeManager : MonoBehaviour {
 			MeshRenderer mr = go.GetComponent<MeshRenderer> ();
 			mr.sharedMaterial = obstacle_mat;
 			//mr.material.color = Color.red;
-			obstacle_datas.Add (new CubePathData (ob, ox, oz, go, mr));
+			CubePathData data = new CubePathData (ob, ox, oz, go, mr) ;
+			data.cost = 65535f;
+			obstacle_datas.Add (data);
+			path_datas [ob_index] = data;
 			--ob;
 		}
 	}
