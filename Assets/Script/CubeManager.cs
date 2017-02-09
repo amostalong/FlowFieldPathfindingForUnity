@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine.UI;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class CubePathData
 {
@@ -118,7 +119,7 @@ public class CubeManager : MonoBehaviour {
 
 		start_cube = -1;
 		end_cube = -1;
-		state == State.None;
+		state = State.None;
 
 		x = int.Parse (string.IsNullOrEmpty (input_x.text) ? "1" : input_x.text);
 		z = int.Parse (string.IsNullOrEmpty (input_z.text) ? "1" : input_z.text);
@@ -159,7 +160,7 @@ public class CubeManager : MonoBehaviour {
 
 	void Update()
 	{
-		if (EventSystem.current.IsPointerOverGameObject(fingerID) == false &&state != State.None && Input.GetMouseButtonUp(0))
+		if (EventSystem.current.IsPointerOverGameObject(0) == false &&state != State.None && Input.GetMouseButtonUp(0))
 		{
 			Ray ray = Camera.main.ScreenPointToRay (Input.mousePosition);
 
