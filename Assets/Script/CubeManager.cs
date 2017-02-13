@@ -11,9 +11,10 @@ public class CubePathData
 	public int z;
 	public MeshRenderer mesh;
 	public GameObject cube;
+	public Vector2 vec;
 
 	//rang: (0,1]
-	public float cost = Random.Range(1,3);
+	public float cost = 1;
 	public float F = 65535f;
 
 
@@ -58,12 +59,14 @@ public class MoveCube
 		set
 		{
 			_stand_cube = value;
-			self_cube.transform.position = 
-				new Vector3 (_stand_cube.cube.transform.position.x,
-				_stand_cube.cube.transform.position.y + 1,
-				_stand_cube.cube.transform.position.z);
+//			self_cube.transform.position = 
+//				new Vector3 (_stand_cube.cube.transform.position.x,
+//				_stand_cube.cube.transform.position.y + 1,
+//				_stand_cube.cube.transform.position.z);
 		}
 	}
+
+	public CubePathData dir_cube;
 
 	public GameObject self_cube;
 
@@ -125,11 +128,16 @@ public class CubeManager : MonoBehaviour {
 	[SerializeField]
 	CubeNearType near_type = CubeNearType.Four_Direction;
 
+	[SerializeField]
+	float velocity;
+
 	Direction[] direction;
 
 	public FlowField ff;
 
 	bool go_ff = false;
+
+	Vector3 pre_offset = Vector3.zero;
 
 	public void Awake()
 	{
@@ -178,7 +186,7 @@ public class CubeManager : MonoBehaviour {
 	void GenerateFlowField()
 	{
 		ResetAllFValue ();
-		ff.GenerateFlowField (this);
+		ff.GenerateHeatMap (this).GenerateVectorMap (this);
 	}
 
 	void ResetAllFValue()
@@ -207,26 +215,67 @@ public class CubeManager : MonoBehaviour {
 
 	IEnumerator GoFlowField()
 	{
+//		while (true) {
+//			for (int i = 0; i < goer.Count; ++i) {
+//				if (goer == null)
+//					continue;
+//			
+//				CubePathData next = null;
+//
+//				if (goer [i] != null)
+//					next = FFPather.GetNextCube (this, goer [i].stand_cube);
+//				if (next != null) {
+//					goer [i].stand_cube = next;
+//				} else {
+//					Debug.Log (string.Format ("No next cube can go!"));
+//				}
+//			}
+//
+//			yield return new WaitForSeconds (.2f);
+//		}
+
 		while (true) {
 			for (int i = 0; i < goer.Count; ++i) {
-				if (goer == null)
-					continue;
-			
-				CubePathData next = null;
 
-				if (goer [i] != null)
-					next = FFPather.GetNextCube (this, goer [i].stand_cube);
-				if (next != null) {
-					goer [i].stand_cube = next;
-				} else {
-					Debug.Log (string.Format ("No next cube can go!"));
+				if (goer [i].stand_cube == path_datas [end_cube])
+					continue;
+
+				if (goer [i].dir_cube == null)
+					goer [i].dir_cube = goer [i].stand_cube;
+				
+				float velocity = this.velocity * Time.deltaTime;
+
+				Vector3 offset = new Vector3 (goer [i].dir_cube.vec.x, 0, -goer [i].dir_cube.vec.y).normalized * velocity;
+
+				Debug.Log ("velocityP: " + offset);
+
+				goer [i].self_cube.transform.position += offset;
+
+				int x = Mathf.RoundToInt (goer [i].self_cube.transform.position.x);
+				int z = Mathf.RoundToInt (goer [i].self_cube.transform.position.z);
+
+				int index = z * this.x + x;
+
+				if (index >= path_datas.Count)
+				{
+					Debug.LogError("out range.");
 				}
+					
+				goer [i].stand_cube = path_datas [index];
+
+				if (path_datas[index] != goer[i].dir_cube 
+					&& Mathf.Abs(goer[i].self_cube.transform.position.x - goer[i].stand_cube.cube.transform.position.x) < 0.3f
+					&& Mathf.Abs(goer[i].self_cube.transform.position.z - goer[i].stand_cube.cube.transform.position.z) < 0.3f
+				)
+				{
+					goer [i].dir_cube = goer [i].stand_cube;
+				}
+
 			}
 
-			yield return new WaitForSeconds (.2f);
+			yield return 1;
 		}
 	}
-
 //	void OnGUI()
 //	{
 //		if (GUI.Button(new Rect(10, 10, 100, 30), "Generate Cube Map"))
@@ -258,9 +307,9 @@ public class CubeManager : MonoBehaviour {
 		end_cube = -1;
 		state = State.None;
 
-		x = int.Parse (string.IsNullOrEmpty (input_x.text) ? "1" : input_x.text);
-		z = int.Parse (string.IsNullOrEmpty (input_z.text) ? "1" : input_z.text);
-		int ob = int.Parse (string.IsNullOrEmpty (input_obstacle.text) ? "0" : input_obstacle.text);
+		x = int.Parse (string.IsNullOrEmpty (input_x.text) ? "32" : input_x.text);
+		z = int.Parse (string.IsNullOrEmpty (input_z.text) ? "20" : input_z.text);
+		int ob = int.Parse (string.IsNullOrEmpty (input_obstacle.text) ? "50" : input_obstacle.text);
 
 		for (int m = 0;m < z; ++m)
 		{
@@ -288,7 +337,7 @@ public class CubeManager : MonoBehaviour {
 			MeshRenderer mr = go.GetComponent<MeshRenderer> ();
 			mr.sharedMaterial = obstacle_mat;
 			//mr.material.color = Color.red;
-			CubePathData data = new CubePathData (ob, ox, oz, go, mr) ;
+			CubePathData data = new CubePathData (ox + oz * x, ox, oz, go, mr) ;
 			data.cost = 65535f;
 			obstacle_datas.Add (data);
 			path_datas [ob_index] = data;
@@ -319,10 +368,13 @@ public class CubeManager : MonoBehaviour {
 					{
 						if (cube.cost != 65535)
 						{
-							var move_cube = new MoveCube(cube, GameObject.CreatePrimitive(PrimitiveType.Cube));
-							move_cube.self_cube.GetComponent<MeshRenderer> ().sharedMaterial = mover_mat;
-							move_cube.self_cube.transform.localScale = new Vector3 (0.5f, .5f, .5f);
-							goer.Add(move_cube);
+							for (int i = 0; i < 10; ++i) {
+								var move_cube = new MoveCube (cube, GameObject.CreatePrimitive (PrimitiveType.Cube));
+								move_cube.self_cube.GetComponent<MeshRenderer> ().sharedMaterial = mover_mat;
+								move_cube.self_cube.transform.localScale = new Vector3 (0.2f, .2f, .2f);
+								move_cube.self_cube.transform.position += new Vector3 (Random.Range (-0.4f, 0.4f), 0, Random.Range (-0.4f, 0.4f));
+								goer.Add (move_cube);
+							}
 						}
 						else Debug.LogError("Obstacle is there!");
 					}
@@ -347,7 +399,7 @@ public class CubeManager : MonoBehaviour {
 	{
 		List<CubePathData> res = new List<CubePathData> ();
 
-		for (int i = 0; i < (int)near_type; ++i)
+		for (int i = 0; i < 8; ++i)
 		{
 			if (end_cube.x + direction [i].x_move < x && end_cube.x + direction [i].x_move >= 0
 				&& end_cube.z + direction [i].z_move < z && end_cube.z + direction [i].z_move >= 0) {
@@ -359,6 +411,11 @@ public class CubeManager : MonoBehaviour {
 				}
 				else Debug.LogError (string.Format ("Index Out: {0} - {1}", (end_cube.x + direction [i].x_move), (end_cube.z + direction [i].z_move)));
 			}
+			else
+			{
+				res.Add (null);
+			}
+
 		}
 
 		return res;

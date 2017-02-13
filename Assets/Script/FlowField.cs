@@ -13,12 +13,12 @@ public class FlowField {
 
 	float max_F = 0;
 
-	public void GenerateFlowField(CubeManager cm)
+	public FlowField GenerateHeatMap(CubeManager cm)
 	{
 		if (cm.end_cube == -1)
 		{
 			Debug.LogError("Please Set End Cube!");
-			return;
+			return this;
 		}
 
 		if (cm.x == 1 || cm.z == 1)
@@ -49,6 +49,8 @@ public class FlowField {
 			}
 		}
 
+		Debug.Log ("n: " + n);
+
 		Debug.Log ("Max F: " + max_F);
 		for (int i = 0; i < cm.path_datas.Count; ++i)
 		{
@@ -61,6 +63,33 @@ public class FlowField {
 
 			cm.path_datas [i].cube.name = cm.path_datas [i].cube.name + " F: " + cm.path_datas[i].F;
 		}
+
+		return this;
+	}
+
+	public FlowField GenerateVectorMap(CubeManager cm)
+	{
+		for (int i = 0; i < cm.path_datas.Count; ++i)
+		{
+			if (cm.path_datas [i].F == 65535)
+				cm.path_datas [i].vec = Vector2.zero;
+
+			var nears = cm.GetNearPathData (cm.path_datas [i]);
+
+			float[] nears_F = new float[8];
+
+			Vector2 vec = Vector2.zero;
+
+			float new_x = nears [0].F - nears [2].F;
+
+			float new_y = nears [1].F - nears [3].F;
+
+			cm.path_datas [i].vec = new Vector2(new_x, new_y);
+
+			cm.path_datas [i].cube.name += string.Format ("  vec: {0} / {1}", new_x, new_y);
+		}
+
+		return this;
 	}
 
 	private void CheckF(CubePathData end_cube, CubeManager cm)
@@ -69,7 +98,8 @@ public class FlowField {
 		var nears = cm.GetNearPathData (end_cube);
 		for (int i = 0; i < nears.Count; ++i) {
 			var n_cube = nears [i];
-					
+			if (n_cube == null)
+				continue;
 			float F = n_cube.cost + end_cube.F;
 
 			if (n_cube.F > F) {
